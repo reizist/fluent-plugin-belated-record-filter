@@ -27,13 +27,12 @@ class BelatedRecordFilterTest < Test::Unit::TestCase
     test 'execute filter by datetime string' do
       CONFIG = <<CONF
         type belated_record
-        <extract>
-          time_key time
-        time_type string
-        time_format %Y-%m-%d %H:%M:%S %z
-        keep_time_key true
-
-        </extract>
+        <comparison>
+          column_key time
+          column_key_type time
+          time_type string
+          time_format %Y-%m-%d %H:%M:%S %z
+        </comparison>
 CONF
       base_time   = Time.now
       future_time = base_time + 1
@@ -70,6 +69,29 @@ CONF
       assert_equal(
         [{"time" => base_time, "message" => "initial message"}, {"time" => future_time, "message" => "future message"}].sort_by{|h| h["time"]},
         d.filtered.instance_variable_get(:@record_array).sort_by{|h| h["time"]}
+      )
+    end
+
+    test 'execute filter by numeric' do
+      CONFIG = <<CONF
+        type belated_record
+        <comparison>
+          column_key id
+          column_key_type numeric
+        </comparison>
+CONF
+
+      d = create_driver(CONFIG)
+
+      d.run do
+        d.emit("id" => 1, "message" => "initial message")
+        d.emit("id" => 5, "message" => "future message")
+        d.emit("id" => 3, "message" => "past message")
+      end
+
+      assert_equal(
+        [{"id" => 1, "message" => "initial message"}, {"id" => 5, "message" => "future message"}].sort_by{|h| h["id"]},
+        d.filtered.instance_variable_get(:@record_array).sort_by{|h| h["id"]}
       )
     end
   end
